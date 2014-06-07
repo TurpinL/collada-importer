@@ -8,8 +8,9 @@ std::string read(const std::string &filename);
 
 int main()
 {
-	ltcimp::parse(read("../../content/testModel.dae"));
+	ltcimp::import(read("../../content/testModel.dae"));
 
+	std::cout << "Done... ";
 	std::cin.get();
 
 	return 0;

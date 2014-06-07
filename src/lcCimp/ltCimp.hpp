@@ -1,16 +1,21 @@
 #ifndef LTCIMP_HPP
 #define LTCIMP_HPP
 
-#include "rapidxml.hpp"
+#include <rapidxml.hpp>
 #include <string>
 #include <sstream>
 #include <vector>
 #include <cstring>
 #include <iostream>
 
+#include "Mesh.hpp"
+
 namespace ltcimp
 {
-	void parse(const std::string &text);
+	void import(const std::string &text);
+	void importGeometry(rapidxml::xml_node<> *geomNode, Mesh &mesh);
+	void readFloatArray(rapidxml::xml_node<> *floatArrayNode, float *&destination);
+
 	void extractMesh(rapidxml::xml_node<> *geomNode);
 	void parseSourceNode(rapidxml::xml_node<> *sourceNode);
 	void parseSourceData(const std::string &id, unsigned int accessorCount, unsigned int accessorStride, 
@@ -18,14 +23,11 @@ namespace ltcimp
 			std::string *paramTypes, unsigned int paramTypesCount);
 	void parseVectorData(const std::string &data, unsigned int count, std::string paramNames[3]);
 
-	void parse(const std::string &text)
-	{
-
+	void import(const std::string &text)
+	{	
 		// Create a non-const copy of the string
 		char *buffer = new char[text.size() + 1];
 		strcpy(buffer, text.c_str());
-
-		//std::cout << buffer;
 
 		rapidxml::xml_document<> doc;
 		doc.parse<0>(buffer);
@@ -35,9 +37,88 @@ namespace ltcimp
 		node = node->first_node("library_geometries");
 		node = node->first_node("geometry");
 
-		extractMesh(node);
+		Mesh newMesh;
+		importGeometry(node, newMesh);
+	}
 
-		std::cout << "";
+	void importGeometry(rapidxml::xml_node<> *geomNode, Mesh &mesh)
+	{
+		std::string geomID;
+
+		// Iterate through the attributes to extract id and name
+		rapidxml::xml_attribute<> *curAttrib = geomNode->first_attribute();
+		while (curAttrib != nullptr)
+		{
+			std::string attribName = curAttrib->name();
+
+			if(attribName == "id")
+				geomID = curAttrib->value();
+			else if(attribName == "name")
+				mesh.name = curAttrib->value();
+
+			curAttrib = curAttrib->next_attribute();
+		}
+
+		std::cout << "id: " << geomID << std::endl; 
+		std::cout << "name: " << mesh.name << std::endl;
+		std::cout << "---\n";
+
+		// Traverse the mesh node to get to the source node.
+		// TODO add null ptr checking
+		rapidxml::xml_node<> *sourceNode = geomNode->first_node("mesh")->first_node("source");
+
+		while (sourceNode != nullptr)
+		{
+			rapidxml::xml_node<> *floatArrayNode = sourceNode->first_node("float_array");
+			rapidxml::xml_node<> *techniqueNode = sourceNode->first_node("technique_common");
+			
+			std::cout << floatArrayNode->value();
+			float *floatArray;
+			readFloatArray(floatArrayNode, floatArray);
+			char *sourceID = sourceNode->first_attribute("id")->value();
+
+			if ( strstr(sourceID, "positions") != nullptr )
+				mesh.verts = floatArray;
+			else if ( strstr(sourceID, "normals") != nullptr )
+				mesh.norms = floatArray;
+			
+			std::cout << " ";
+			sourceNode = sourceNode->next_sibling("source");
+		}
+	}
+
+	void readFloatArray(rapidxml::xml_node<> *floatArrayNode, float *&destination)
+	{
+		std::string id = "";
+		unsigned int count = 0;
+		
+		// Iterate through the attributes to extract id and count
+		rapidxml::xml_attribute<> *curAttrib = floatArrayNode->first_attribute();
+		while (curAttrib != nullptr)
+		{
+			std::string attribName = curAttrib->name();
+
+			if(attribName == "id")
+				id = curAttrib->value();
+			else if(attribName == "count")
+				count = std::atoi(curAttrib->value());
+
+			curAttrib = curAttrib->next_attribute();
+		}
+
+		std::stringstream stream(floatArrayNode->value());
+		destination = new float[count];
+
+		for (int i = 0; i < count; i++)
+		{
+			if ( !(stream >> destination[i]) )
+			{
+				// Error!
+				delete[] destination;
+				destination = nullptr;
+				return;
+			}
+		}
 	}
 
 	void extractMesh(rapidxml::xml_node<> *geomNode)
