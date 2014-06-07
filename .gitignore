@@ -1,0 +1,13 @@
+*.obj
+lib/
+*.suo
+*.log
+*.user
+*.tlog
+*.idb
+*.pdb
+*.exe
+*.ilk
+*.manifest
+*.lastbuildstate
+*.cache
