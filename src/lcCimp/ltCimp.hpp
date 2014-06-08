@@ -4,6 +4,7 @@
 #include <rapidxml.hpp>
 #include <string>
 #include <sstream>
+#include <map>
 #include <vector>
 #include <cstring>
 #include <iostream>
@@ -12,343 +13,270 @@
 
 namespace ltcimp
 {
-	void import(const std::string &text);
-	void importGeometry(rapidxml::xml_node<> *geomNode, Mesh &mesh);
-	void readFloatArray(rapidxml::xml_node<> *floatArrayNode, float *&destination);
 
-	void extractMesh(rapidxml::xml_node<> *geomNode);
-	void parseSourceNode(rapidxml::xml_node<> *sourceNode);
-	void parseSourceData(const std::string &id, unsigned int accessorCount, unsigned int accessorStride, 
-			std::string *paramNames, unsigned int paramNamesCount, 
-			std::string *paramTypes, unsigned int paramTypesCount);
-	void parseVectorData(const std::string &data, unsigned int count, std::string paramNames[3]);
-
-	void import(const std::string &text)
-	{	
-		// Create a non-const copy of the string
-		char *buffer = new char[text.size() + 1];
-		strcpy(buffer, text.c_str());
-
-		rapidxml::xml_document<> doc;
-		doc.parse<0>(buffer);
-
-		// TO-DO checks
-		rapidxml::xml_node<> *node = doc.first_node("COLLADA");
-		node = node->first_node("library_geometries");
-		node = node->first_node("geometry");
-
-		Mesh newMesh;
-		importGeometry(node, newMesh);
-	}
-
-	void importGeometry(rapidxml::xml_node<> *geomNode, Mesh &mesh)
-	{
-		std::string geomID;
-
-		// Iterate through the attributes to extract id and name
-		rapidxml::xml_attribute<> *curAttrib = geomNode->first_attribute();
-		while (curAttrib != nullptr)
-		{
-			std::string attribName = curAttrib->name();
-
-			if(attribName == "id")
-				geomID = curAttrib->value();
-			else if(attribName == "name")
-				mesh.name = curAttrib->value();
-
-			curAttrib = curAttrib->next_attribute();
-		}
-
-		std::cout << "id: " << geomID << std::endl; 
-		std::cout << "name: " << mesh.name << std::endl;
-		std::cout << "---\n";
-
-		// Traverse the mesh node to get to the source node.
-		// TODO add null ptr checking
-		rapidxml::xml_node<> *sourceNode = geomNode->first_node("mesh")->first_node("source");
-
-		while (sourceNode != nullptr)
-		{
-			rapidxml::xml_node<> *floatArrayNode = sourceNode->first_node("float_array");
-			rapidxml::xml_node<> *techniqueNode = sourceNode->first_node("technique_common");
-			
-			std::cout << floatArrayNode->value();
-			float *floatArray;
-			readFloatArray(floatArrayNode, floatArray);
-			char *sourceID = sourceNode->first_attribute("id")->value();
-
-			if ( strstr(sourceID, "positions") != nullptr )
-				mesh.verts = floatArray;
-			else if ( strstr(sourceID, "normals") != nullptr )
-				mesh.norms = floatArray;
-			
-			std::cout << " ";
-			sourceNode = sourceNode->next_sibling("source");
-		}
-	}
-
-	void readFloatArray(rapidxml::xml_node<> *floatArrayNode, float *&destination)
-	{
-		std::string id = "";
-		unsigned int count = 0;
+class FloatArray
+{
+public:
+	std::string id;
+	unsigned int count;
+	unsigned int stride;
+	float *data;
 		
-		// Iterate through the attributes to extract id and count
-		rapidxml::xml_attribute<> *curAttrib = floatArrayNode->first_attribute();
-		while (curAttrib != nullptr)
+	/** Default Constructor */
+	FloatArray () 
+	: id(""), count(0), stride(0), data(nullptr)
+	{}
+
+	/** Copy Constructor */
+	FloatArray (const FloatArray& other) 
+	: id(other.id), count(other.count), stride(other.stride), data(new float[other.count])
+	{
+		for (unsigned int i = 0; i < other.count; i++)
+			data[i] = other.data[i];
+	}
+
+	/** Copy Assignment Operator */
+	FloatArray& operator= (FloatArray other)
+	{
+		id = other.id;
+		count = other.count;
+		stride = other.stride;
+		data = new float[other.count];
+
+		for (unsigned int i = 0; i < other.count; i++)
+			data[i] = other.data[i];
+
+		return *this;
+	}
+
+	/** Destructor */
+	~FloatArray() { delete[] data; }
+};
+
+void import(const std::string &text);
+void importGeometry(rapidxml::xml_node<> &geomNode, Mesh &mesh);
+bool readFloatArray(rapidxml::xml_node<> &floatArrayNode, rapidxml::xml_node<> &techniqueNode, FloatArray &destination);
+bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map<std::string, FloatArray*> &sources);
+
+void import(const std::string &text)
+{	
+	// Create a non-const copy of the string
+	char *buffer = new char[text.size() + 1];
+	strcpy(buffer, text.c_str());
+
+	rapidxml::xml_document<> doc;
+	doc.parse<0>(buffer);
+
+	// TODO: nullptr checks
+	rapidxml::xml_node<> *node = doc.first_node("COLLADA");
+	node = node->first_node("library_geometries");
+	node = node->first_node("geometry");
+
+	Mesh newMesh;
+	importGeometry(*node, newMesh);
+}
+
+void importGeometry(rapidxml::xml_node<> &geomNode, Mesh &mesh)
+{
+	std::map<std::string, FloatArray*> sources;
+	rapidxml::xml_node<> *meshNode = geomNode.first_node("mesh");
+
+	// No mesh :(
+	if( !meshNode ) { return; }
+
+	// Get the name and id attributes to set the mesh's attribuets.
+	rapidxml::xml_attribute<> *idAttrib = geomNode.first_attribute("id");
+	rapidxml::xml_attribute<> *nameAttrib = geomNode.first_attribute("name");
+	if(idAttrib) { mesh.id = idAttrib->value(); }
+	if(nameAttrib) { mesh.name = nameAttrib->value(); }
+
+	//TODO: Remove when this debugging becomes redundant
+	std::cout << "id: " << mesh.id << std::endl; 
+	std::cout << "name: " << mesh.name << std::endl;
+	std::cout << "---\n";
+
+	// Traverse the mesh node to get to the source node.
+	// Source nodes contain vertex, normals and texture co-ordinate data
+	rapidxml::xml_node<> *sourceNode = meshNode->first_node("source");
+
+	while (sourceNode != nullptr)
+	{
+		// Get the source node's id.
+		char *sourceID = sourceNode->first_attribute("id")->value();
+		FloatArray *floatArray = new FloatArray();
+
+		// Get the float_array and technique_common nodes
+		rapidxml::xml_node<> *floatArrayNode = sourceNode->first_node("float_array");
+		rapidxml::xml_node<> *techniqueNode = sourceNode->first_node("technique_common");
+
+		// Check we have a float array node then read it
+		if( floatArrayNode && readFloatArray(*floatArrayNode, *techniqueNode, *floatArray) )
+			sources.insert( std::pair<std::string, FloatArray*>(sourceID, floatArray) );
+		else
+			delete floatArray;
+
+		sourceNode = sourceNode->next_sibling("source");
+	}
+
+	// Collada has this seemingly useless vertices node which in all cases that
+	// I've seen just gives the positions float array an alias.
+	// TODO: nullptr checks
+	rapidxml::xml_node<> *verticesNode = meshNode->first_node("vertices");
+	rapidxml::xml_node<> *verticesInputNode = verticesNode->first_node("input");
+
+	// Source references are prepended with '#', we'll ignore it when constructing the string
+	std::string verticesSource( verticesInputNode->first_attribute("source")->value()+1 );
+	std::string verticesID( verticesNode->first_attribute("id")->value() );
+
+	sources.insert( std::pair<std::string, FloatArray*>(verticesID, sources[verticesSource]) );
+
+	rapidxml::xml_node<> *polylistNode = meshNode->first_node("polylist");
+
+	readPolyList(*polylistNode, mesh, sources);
+
+	std::cout << "test";
+}
+
+bool readFloatArray(rapidxml::xml_node<> &floatArrayNode, rapidxml::xml_node<> &techniqueNode, FloatArray &destination)
+{	
+	// Iterate through the attributes to extract id and count
+	// Store these in the destination FloatArray object
+	rapidxml::xml_attribute<> *curAttrib = floatArrayNode.first_attribute();
+	while (curAttrib != nullptr)
+	{
+		std::string attribName = curAttrib->name();
+
+		if(attribName == "id")
+			destination.id = curAttrib->value();
+		else if(attribName == "count")
+			destination.count = std::atoi(curAttrib->value());
+
+		curAttrib = curAttrib->next_attribute();
+	}
+
+	// Create a string stream from the node's value
+	// So we can extract the floats.
+	std::stringstream stream(floatArrayNode.value());
+	destination.data = new float[destination.count];
+
+	// Attempt to read floats from the string stream 
+	// there should be as many as count defined.
+	for (unsigned int i = 0; i < destination.count; i++)
+	{
+		// Check that we read the float succesfully
+		// if not the float_array is corrupt and
+		// probably didn't contain as many floats
+		// as it said it did.
+		if ( !(stream >> destination.data[i]) )
 		{
-			std::string attribName = curAttrib->name();
-
-			if(attribName == "id")
-				id = curAttrib->value();
-			else if(attribName == "count")
-				count = std::atoi(curAttrib->value());
-
-			curAttrib = curAttrib->next_attribute();
-		}
-
-		std::stringstream stream(floatArrayNode->value());
-		destination = new float[count];
-
-		for (int i = 0; i < count; i++)
-		{
-			if ( !(stream >> destination[i]) )
-			{
-				// Error!
-				delete[] destination;
-				destination = nullptr;
-				return;
-			}
+			// Error!
+			// Free up allocated memory
+			delete[] destination.data;
+			// Set data to nullptr to indicate an error
+			destination.data = nullptr;
+			// Nothing more to do.
+			return false;
 		}
 	}
 
-	void extractMesh(rapidxml::xml_node<> *geomNode)
+	destination.stride = std::atoi(techniqueNode.first_node("accessor")->first_attribute("stride")->value());
+
+	return true;
+}
+
+// Assumes triangulated.
+bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map<std::string, FloatArray*> &sources)
+{
+	// We set the size to 4, there shouldn't be more than 4?
+	FloatArray *orderedSources[4] = {nullptr};
+	float **orderedOutput[4] = {nullptr};
+	unsigned int inputsCount = 0;
+
+	// Calculate the number of vertices in the polylist
+	// Assuming the mesh is triangulated, the number of vertices is 3 * poly count
+	unsigned int vertexCount = 3 * std::atoi(polyListNode.first_attribute("count")->value());
+
+	// Iterate through the input nodes.
+	rapidxml::xml_node<> *curInputNode = polyListNode.first_node("input");
+
+	while (curInputNode)
 	{
-		std::string geomID;
-		std::string geomName;
+		// extract the semantic and source attributes
+		
+		rapidxml::xml_attribute<> *sourceAttribute = curInputNode->first_attribute("source");
+		rapidxml::xml_attribute<> *semanticAttribute = curInputNode->first_attribute("semantic");
+		rapidxml::xml_attribute<> *offsetAttribute = curInputNode->first_attribute("offset");
+		// Add 1 to the char pointer to skip the prepended '#' on this source references
+		std::string source( sourceAttribute->value()+1 );
+		std::string semantic( semanticAttribute->value() );
+		unsigned int offset = std::atoi(offsetAttribute->value());
 
-		// Iterate through the attributes to extract id and name
-		rapidxml::xml_attribute<> *curAttrib = geomNode->first_attribute();
-		while (curAttrib != nullptr)
+		orderedSources[offset] = sources.at(source);
+
+		//TODO: Explain this.
+		if(semantic == "VERTEX")
 		{
-			std::string attribName = curAttrib->name();
-
-			if(attribName == "id")
-				geomID = curAttrib->value();
-			else if(attribName == "name")
-				geomName = curAttrib->value();
-
-			curAttrib = curAttrib->next_attribute();
+			mesh.numVerts = vertexCount;
+			orderedOutput[offset] = &(mesh.verts);
+		}
+		else if(semantic == "NORMAL")
+		{
+			mesh.numNorms = vertexCount;
+			orderedOutput[offset] = &(mesh.norms);
 		}
 
-		std::cout << "id: " << geomID << std::endl; 
-		std::cout << "name: " << geomName << std::endl;
-		std::cout << "---\n";
+		*orderedOutput[offset] = new float[vertexCount * orderedSources[offset]->stride];
 
-		// The mesh node holds all the vertex in "source" nodes
-		rapidxml::xml_node<> *curMeshSubNode = geomNode->first_node("mesh");
-		
-		if (curMeshSubNode)
+		inputsCount++;
+		curInputNode = curInputNode->next_sibling("input");
+	}
+
+	// 'p' node stores all the indices
+	// Access the p node and use the indexes to create a non-indexed
+	// mesh to store in the mesh object
+	rapidxml::xml_node<> *pNode = polyListNode.first_node("p");
+
+	// Create a string stream from the node's value
+	// So we can extract the floats.
+	std::stringstream stream(pNode->value());
+
+	unsigned int curIndex;
+	unsigned int numIndexes = vertexCount * inputsCount;
+	for (unsigned int i = 0; i < numIndexes; i++)
+	{
+		if (stream >> curIndex)
 		{
-			curMeshSubNode = curMeshSubNode->first_node();
+			FloatArray *curFloatArray = orderedSources[i % inputsCount];
+			float *curOutput = *(orderedOutput[i % inputsCount]);
 
-			while (curMeshSubNode != nullptr)
+			for(unsigned int j = 0; j < curFloatArray->stride; j++)
 			{
-				if ( strcmp(curMeshSubNode->name(),"source") == 0 )
-					parseSourceNode(curMeshSubNode);
-
-				curMeshSubNode = curMeshSubNode->next_sibling();
+				unsigned int &stride = curFloatArray->stride;
+				curOutput[(i / inputsCount)*stride + j] = curFloatArray->data[curIndex*stride + j];
 			}
 		}
 		else
 		{
-			// Corrupt
+			// TODO: some cleanup
+			return false;
 		}
 	}
 
-	void parseSourceNode(rapidxml::xml_node<> *sourceNode)
+	//TODO: Remove when this debugging becomes redundant
+	std::cout << "Norms\n";
+	for(int i = 0; i < mesh.numNorms * 3; i += 3)
 	{
-		std::string sourceID;
-		std::string strArrValue;
-		std::string arrID;
-		unsigned int arrCount = 0;
-		std::string *paramNames = nullptr;
-		std::string *paramTypes = nullptr;
-
-		// Iterate through the attributes to extract id
-		rapidxml::xml_attribute<> *curAttrib = sourceNode->first_attribute();
-		while (curAttrib != nullptr)
-		{
-			std::string attribName = curAttrib->name();
-
-			if(attribName == "id")
-				sourceID = curAttrib->value();
-
-			curAttrib = curAttrib->next_attribute();
-		}
-
-		std::cout << sourceID << std::endl;
-
-		// The mesh node holds all the vertex in "source" nodes
-		rapidxml::xml_node<> *curSubNode = sourceNode->first_node();
-		
-		while (curSubNode != nullptr)
-		{
-			if ( strcmp(curSubNode->name(), "float_array") == 0 )
-			{
-				arrCount = 0;
-				strArrValue = curSubNode->value();
-
-				// Iterate through the float_array's attributes to get id and count
-				rapidxml::xml_attribute<> *curArrAttrib = curSubNode->first_attribute();
-				while (curArrAttrib != nullptr)
-				{
-					std::string attribName = curArrAttrib->name();
-
-					if(attribName == "id")
-						arrID = curArrAttrib->value();
-					else if(attribName == "count")
-						arrCount = atoi(curArrAttrib->value());
-
-					curArrAttrib = curArrAttrib->next_attribute();
-				}
-
-				std::cout << "id: " << arrID << std::endl;
-				std::cout << "count: " << arrCount << std::endl;
-				std::cout << strArrValue << std::endl;
-			}
-			else if ( strcmp(curSubNode->name(), "technique_common") == 0 )
-			{
-				// The only sub node we care about is the accessor node.
-				rapidxml::xml_node<> *accessorNode = curSubNode->first_node("accessor");
-				std::string accessorSource;
-				unsigned int accessorStride = 0;
-				unsigned int accessorCount = 0;
-
-				if (accessorNode)
-				{
-					// Iterate through the accessor's attributes to get source, count and stride.
-					rapidxml::xml_attribute<> *curAccessorAttrib = accessorNode->first_attribute();
-					while (curAccessorAttrib != nullptr)
-					{
-						std::string attribName = curAccessorAttrib->name();
-
-						if(attribName == "source")
-							accessorSource = curAccessorAttrib->value();
-						else if(attribName == "count")
-							accessorCount = atoi(curAccessorAttrib->value());
-						else if(attribName == "stride")
-							accessorStride = atoi(curAccessorAttrib->value());
-
-						curAccessorAttrib = curAccessorAttrib->next_attribute();
-					}
-
-					rapidxml::xml_node<> *curAccessorSubNode = accessorNode->first_node();
-					int paramIndex = 0; 
-					paramNames = new std::string[accessorStride];
-					paramTypes = new std::string[accessorStride];
-
-					while (curAccessorSubNode != nullptr)
-					{
-						if ( strcmp(curAccessorSubNode->name(), "param") == 0 )
-						{
-							rapidxml::xml_attribute<> *paramNameAttrib = curAccessorSubNode->first_attribute("name");
-							if (paramNameAttrib) 
-								paramNames[paramIndex] = paramNameAttrib->value(); 
-							else
-								paramNames[paramIndex] = "";
-
-							rapidxml::xml_attribute<> *paramTypeAttrib = curAccessorSubNode->first_attribute("type");
-							if (paramTypeAttrib) 
-								paramTypes[paramIndex] = paramTypeAttrib->value();
-							else
-								paramTypes[paramIndex] = "";
-
-							paramIndex++;
-						}
-
-						curAccessorSubNode = curAccessorSubNode->next_sibling();
-					}
-
-					for (int i = 0; i < accessorStride; i++)
-					{
-						std::cout << paramNames[i] << ", ";
-						std::cout << paramTypes[i] << std::endl;
-					}
-
-					std::cout << "Accessor source: " << accessorSource << std::endl;
-					std::cout << "Accessor count: " << accessorCount << std::endl;
-					std::cout << "Accessor stride: " << accessorStride << std::endl;
-
-					delete[] paramTypes;
-
-				}
-				else
-				{
-					// Corrupt
-				}
-			}
-
-			curSubNode = curSubNode->next_sibling();
-		}
-
-		parseVectorData(strArrValue, arrCount, paramNames);
-		std::cout << "---\n";
-		delete[] paramNames;
+		std::cout << "<" << mesh.norms[i] << ", " << mesh.norms[i+1] << ", " << mesh.norms[i+2] << ">\n";  
 	}
 
-	void parseVectorData(const std::string &data, unsigned int count, std::string paramNames[3])
+	std::cout << "Verts\n";
+	for(int i = 0; i < mesh.numVerts * 3; i += 3)
 	{
-		// Make sure the data is divisible by 3
-		if(count % 3 == 0)
-		{
-			// Tokenize the string
-			std::string buf;
-			std::stringstream stream(data);
-
-			std::string *tokenizedData = new std::string[count];
-
-			// We know how many tokens there should be,
-			// if we find less exit the function.
-			for(int i = 0; i < count; i++)
-			{
-				if(stream >> buf)
-				{
-					tokenizedData[i] = buf;
-				}
-				else
-				{
-					// Error
-					return;
-				}
-			}
-
-			int elementOrder[3];
-
-			// Based on the order of paramNames, we work out the order
-			// to place the elements into the vectors.
-			for (int i = 0; i < 3; i++)
-			{
-				if (paramNames[i] == "X" || paramNames[i] == "S") { elementOrder[i] = 0; } 
-				else if (paramNames[i] == "Y" || paramNames[i] == "T") { elementOrder[i] = 1; } 
-				else if (paramNames[i] == "Z" || paramNames[i] == "P") { elementOrder[i] = 2; } 
-			}
-
-			float x, y, z;
-
-			for (int i = 0; i < count; i += 3)
-			{
-				x = std::stof(tokenizedData[i + elementOrder[0]]);
-				y = std::stof(tokenizedData[i + elementOrder[1]]);
-				z = std::stof(tokenizedData[i + elementOrder[2]]);
-
-				std::cout << "<" << x << ", " << y << ", " << z << ">\n";
-			}
-		}
-		else
-		{
-			// Data doesn't fit!
-		}
+		std::cout << "<" << mesh.verts[i] << ", " << mesh.verts[i+1] << ", " << mesh.verts[i+2] << ">\n";  
 	}
+
+	return true;
+}
 
 }
 

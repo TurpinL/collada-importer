@@ -1,0 +1,30 @@
+COLLADA
+    asset
+        contributor
+            author
+            authoring_tool
+        created
+        modified
+        unit
+        up_axis
+    // Other library_???
+    library_geometries
+        geometry
+            mesh
+                source
+                    float_array
+                    technique_common
+                        accessor
+                            param
+                            param
+                            param
+                vertices
+                    input
+                polylist
+                    input
+                    input
+                    vcount // Should be all 3s
+                    p
+            extra
+                technique
+                    double_sided

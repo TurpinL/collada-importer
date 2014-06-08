@@ -27,7 +27,7 @@ std::string read(const std::string &filename)
 		// Work out the size of the file so we can
 		// set the string size.
 		file.seekg(0, std::ios::end);
-		contents.resize(file.tellg());
+		contents.resize((unsigned int )file.tellg());
 
 		// Read the entire file into contents.
 		file.seekg(0, std::ios::beg);

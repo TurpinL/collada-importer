@@ -16,14 +16,18 @@ public:
 	unsigned int numVerts;
 
 	float *norms;
+	//TODO: Better define what this stores
 	unsigned int numNorms;
 
 	std::string name;
+	std::string id;
 
 	////////////////////////////////////////////////////////////
 	/// Sets everyone to zero
 	////////////////////////////////////////////////////////////
 	Mesh();
+
+	// TODO: Rule of three
 };
 
 }
