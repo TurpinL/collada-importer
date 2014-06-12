@@ -207,7 +207,7 @@ bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map
 	}
 
 	//TODO: Remove when this debugging becomes redundant
-	std::cout << "Norms\n";
+	/*std::cout << "Norms\n";
 	for(int i = 0; i < mesh.numNorms * 3; i += 3)
 	{
 		std::cout << "<" << mesh.norms[i] << ", " << mesh.norms[i+1] << ", " << mesh.norms[i+2] << ">\n";  
@@ -217,7 +217,7 @@ bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map
 	for(int i = 0; i < mesh.numVerts * 3; i += 3)
 	{
 		std::cout << "<" << mesh.verts[i] << ", " << mesh.verts[i+1] << ", " << mesh.verts[i+2] << ">\n";  
-	}
+	}*/
 
 	return true;
 }

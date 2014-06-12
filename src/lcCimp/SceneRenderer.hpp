@@ -27,6 +27,11 @@ private:
 		void reshape(int w, int h, double fov);
 
 	void idle();
+		void calcFrameTime();
+			sf::Clock m_gameClock;
+			sf::Time m_frameTime; 
+			sf::Time m_lastClock;
+			int m_frameCount;
 
 	void display();
 };

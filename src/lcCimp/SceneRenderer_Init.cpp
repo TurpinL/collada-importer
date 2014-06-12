@@ -13,6 +13,8 @@ void SceneRenderer::init()
 
 	// Read collada file.
 	ltcimp::import(read("../../content/testScene.dae"), m_testMesh);
+	m_lastClock = m_gameClock.getElapsedTime();
+	m_frameCount = 0;
 }
 
 void SceneRenderer::initSFML()

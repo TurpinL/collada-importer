@@ -7,7 +7,7 @@ void renderMesh(ltcimp::Mesh &mesh);
 void SceneRenderer::display()
 {
 	static float rotation = 0;
-	rotation += 0.01;
+	rotation += 90 * m_frameTime.asSeconds();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLoadIdentity();
