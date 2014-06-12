@@ -7,7 +7,7 @@ void renderMesh(ltcimp::Mesh &mesh);
 void SceneRenderer::display()
 {
 	static float rotation = 0;
-	rotation += 0.5;
+	rotation += 0.01;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLoadIdentity();
@@ -23,7 +23,7 @@ void SceneRenderer::display()
 
 void renderMesh(ltcimp::Mesh &mesh)
 {
-	glBegin(GL_TRIANGLE_STRIP);
+	glBegin(GL_TRIANGLES);
 		for(int i = 0; i < mesh.numVerts * 3; i += 3)
 		{
 			glNormal3f(mesh.norms[i], mesh.norms[i+1], mesh.norms[i+2]);

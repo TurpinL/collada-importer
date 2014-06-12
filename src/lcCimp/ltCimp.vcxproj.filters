@@ -39,11 +39,11 @@
     <ClCompile Include="SceneRenderer_Idle.cpp">
       <Filter>SceneRenderer\src</Filter>
     </ClCompile>
-    <ClCompile Include="SceneRenderer_Display.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ltCimp.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneRenderer_Display.cpp">
+      <Filter>SceneRenderer\src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
