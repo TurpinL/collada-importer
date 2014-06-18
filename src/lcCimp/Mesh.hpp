@@ -18,6 +18,11 @@ public:
 	float *norms;
 	//TODO: Better define what this stores
 	unsigned int numNorms;
+	bool hasNorms;
+
+	float *texCoords;
+	unsigned int numTexCoords;
+	bool hasTexCoords;
 
 	std::string name;
 	std::string id;

@@ -5,26 +5,24 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="SceneRenderer">
       <UniqueIdentifier>{3dc70fe2-892b-4086-8450-a926f089fdb5}</UniqueIdentifier>
     </Filter>
     <Filter Include="SceneRenderer\src">
       <UniqueIdentifier>{d6a52136-2430-48d8-8e63-e04acb7cdc94}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ltCimp">
+      <UniqueIdentifier>{4bcffa24-3d51-4247-ac27-ad3faed2c18c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ltCimp\Source">
+      <UniqueIdentifier>{f6f40190-8089-4613-ac0d-75bb7f8e6017}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ltCimp\Header">
+      <UniqueIdentifier>{ed2a50db-4e1f-4e41-a0d9-99720039bd1b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SceneRenderer.cpp">
@@ -39,22 +37,31 @@
     <ClCompile Include="SceneRenderer_Idle.cpp">
       <Filter>SceneRenderer\src</Filter>
     </ClCompile>
-    <ClCompile Include="ltCimp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SceneRenderer_Display.cpp">
       <Filter>SceneRenderer\src</Filter>
     </ClCompile>
+    <ClCompile Include="ltCimp.cpp">
+      <Filter>ltCimp\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>ltCimp\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="FloatArray.cpp">
+      <Filter>ltCimp\Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ltCimp.hpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Mesh.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SceneRenderer.hpp">
       <Filter>SceneRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.hpp">
+      <Filter>ltCimp\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ltCimp.hpp">
+      <Filter>ltCimp\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="FloatArray.hpp">
+      <Filter>ltCimp\Header</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

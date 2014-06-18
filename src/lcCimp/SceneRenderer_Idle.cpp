@@ -1,5 +1,7 @@
 #include "SceneRenderer.hpp"
 
+#include <iostream>
+
 void SceneRenderer::idle()
 {
 	calcFrameTime();

@@ -67,6 +67,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FloatArray.cpp" />
     <ClCompile Include="ltCimp.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mesh.cpp" />
@@ -77,6 +78,7 @@
     <ClCompile Include="SceneRenderer_Init.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FloatArray.hpp" />
     <ClInclude Include="ltCimp.hpp" />
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="SceneRenderer.hpp" />

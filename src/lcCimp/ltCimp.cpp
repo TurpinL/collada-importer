@@ -1,23 +1,83 @@
 #include "ltCimp.hpp"
 
+#include <sstream>
+#include <vector>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+
 namespace ltcimp
 {
 
-void import(const std::string &text, Mesh &mesh)
-{	
-	// Create a non-const copy of the string
-	char *buffer = new char[text.size() + 1];
-	strcpy(buffer, text.c_str());
+std::string read(const std::string &filename);
+
+Importer::Importer() 
+{
+	m_contentDirectory = "";
+}
+
+void Importer::setContentDirectory(const std::string &directory)
+{
+	m_contentDirectory = directory; 
+}
+
+const Mesh& Importer::getMesh()
+{
+	return m_mesh;
+}
+
+void Importer::importScene(const std::string &filename)
+{
+	// Read the collada file
+	std::string fileContents = read(m_contentDirectory + filename);
+
+	char *buffer = new char[fileContents.size() + 1];
+	strcpy(buffer, fileContents.c_str());
 
 	rapidxml::xml_document<> doc;
 	doc.parse<0>(buffer);
 
 	// TODO: nullptr checks
-	rapidxml::xml_node<> *node = doc.first_node("COLLADA");
-	node = node->first_node("library_geometries");
-	node = node->first_node("geometry");
+	rapidxml::xml_node<> *colladaNode = doc.first_node("COLLADA");
 
-	importGeometry(*node, mesh);
+	rapidxml::xml_node<> *curLibraryNode = colladaNode->first_node();
+
+	while (curLibraryNode != nullptr)
+	{
+		std::string curName = curLibraryNode->name();
+
+		if (curName == "library_geometries")
+			importGeometry(*curLibraryNode->first_node("geometry"), m_mesh);
+
+		curLibraryNode = curLibraryNode->next_sibling();
+	}
+}
+
+std::string read(const std::string &filename)
+{
+	std::ifstream file(filename, std::ios::in | std::ios::binary);
+
+	if (file.is_open())
+	{
+		std::string contents;
+		
+		// Work out the size of the file so we can
+		// set the string size.
+		file.seekg(0, std::ios::end);
+		contents.resize((unsigned int )file.tellg());
+
+		// Read the entire file into contents.
+		file.seekg(0, std::ios::beg);
+		file.read(&contents[0], contents.size());
+
+		file.close();
+
+		return contents;
+	}
+
+	// File didn't open, return a blank string.
+	std::cerr << "File Not Found: \"" << filename << "\"" << std::endl;
+	return "";
 }
 
 void importGeometry(rapidxml::xml_node<> &geomNode, Mesh &mesh)
@@ -167,6 +227,13 @@ bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map
 		{
 			mesh.numNorms = vertexCount;
 			orderedOutput[offset] = &(mesh.norms);
+			mesh.hasNorms = true;
+		}
+		else if(semantic == "TEXCOORD")
+		{
+			mesh.numTexCoords = vertexCount;
+			orderedOutput[offset] = &(mesh.texCoords);
+			mesh.hasTexCoords = true;
 		}
 
 		*orderedOutput[offset] = new float[vertexCount * orderedSources[offset]->stride];
@@ -205,19 +272,6 @@ bool readPolyList(rapidxml::xml_node<> &polyListNode, Mesh &mesh, const std::map
 			return false;
 		}
 	}
-
-	//TODO: Remove when this debugging becomes redundant
-	/*std::cout << "Norms\n";
-	for(int i = 0; i < mesh.numNorms * 3; i += 3)
-	{
-		std::cout << "<" << mesh.norms[i] << ", " << mesh.norms[i+1] << ", " << mesh.norms[i+2] << ">\n";  
-	}
-
-	std::cout << "Verts\n";
-	for(int i = 0; i < mesh.numVerts * 3; i += 3)
-	{
-		std::cout << "<" << mesh.verts[i] << ", " << mesh.verts[i+1] << ", " << mesh.verts[i+2] << ">\n";  
-	}*/
 
 	return true;
 }

@@ -1,7 +1,6 @@
 #include "SceneRenderer.hpp"
 
 #include <iostream>
-#include <fstream>
 #include <string>
 
 std::string read(const std::string &filename);
@@ -12,7 +11,12 @@ void SceneRenderer::init()
 	initGL();
 
 	// Read collada file.
-	ltcimp::import(read("../../content/testScene.dae"), m_testMesh);
+	ltcimp::Importer importer;
+
+	importer.setContentDirectory("../../content/");
+	importer.importScene("BonedBox.dae");
+	m_testMesh = importer.getMesh();
+
 	m_lastClock = m_gameClock.getElapsedTime();
 	m_frameCount = 0;
 }
@@ -32,31 +36,6 @@ void SceneRenderer::initGL()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_LIGHTING);
+	glEnable(GL_COLOR_MATERIAL);
 }
 
-std::string read(const std::string &filename)
-{
-	std::ifstream file(filename, std::ios::in | std::ios::binary);
-
-	if (file.is_open())
-	{
-		std::string contents;
-		
-		// Work out the size of the file so we can
-		// set the string size.
-		file.seekg(0, std::ios::end);
-		contents.resize((unsigned int )file.tellg());
-
-		// Read the entire file into contents.
-		file.seekg(0, std::ios::beg);
-		file.read(&contents[0], contents.size());
-
-		file.close();
-
-		return contents;
-	}
-
-	// File didn't open, return a blank string.
-	std::cerr << "File Not Found: \"" << filename << "\"" << std::endl;
-	return "";
-}
